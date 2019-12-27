@@ -1,0 +1,15 @@
+[
+ {
+  "name": "${container_name}",
+  "image": "${image_url}",
+  "cpu": ${cpu_instance},
+  "memory": ${memory_instance},
+  "launchType": "EC2",
+  "portMappings": [
+      {
+        "containerPort": ${container_port}
+      }
+  ],
+  "essential": true
+ }
+]
