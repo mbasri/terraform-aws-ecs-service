@@ -5,19 +5,19 @@ resource "aws_ecs_task_definition" "main" {
   container_definitions    = data.template_file.main.rendered
   network_mode             = "bridge"
   requires_compatibilities = ["EC2"]
-  cpu                      = var.cpu
-  memory                   = var.memory
   //task_role_arn            = data.aws_iam_role.ecr_role.name
   //execution_role_arn       = data.aws_iam_role.ecr_role.name
+
+  dynamic "volume" {
+    for_each  = local.volumes_from
+    content {
+      name      = volume.value["name"]
+      host_path = volume.value["host_path"]
+    }
+  }
+
   tags    = merge(var.tags, map("Name", join("-", [local.prefix_name, "pri", "tsk"])))
 }
-
-/*
-resource "aws_cloudwatch_log_group" "main" {
-  name    = "/${var.ecs_cluster_name}/${aws_ecs_service.main}"
-  tags    = merge(var.tags, map("Name", join("-", [local.prefix_name, "pri", "log"])))
-}
-*/
 
 resource "aws_ecs_service" "main" {
   name                = var.container_name
@@ -27,13 +27,66 @@ resource "aws_ecs_service" "main" {
   scheduling_strategy = "REPLICA"
   launch_type         = "EC2"
 
+  ordered_placement_strategy {
+    type  = "spread"
+    field = "instanceId"
+  }
+
   load_balancer {
     target_group_arn = aws_alb_target_group.main.id
     container_name   = var.container_name
     container_port   = var.container_port
   }
 
+  lifecycle {
+      ignore_changes = [desired_count]
+    }
   //tags    = merge(var.tags, map("Name", join("-", [local.prefix_name, "pri", "svc"])))
+}
+
+resource "aws_appautoscaling_target" "main" {
+  min_capacity       = 2
+  max_capacity       = 4
+  resource_id        = "service/${var.ecs_cluster_name}/${var.container_name}"
+  #role_arn           = aws_iam_role.as_ecs.arn
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "cpu" {
+  name               = "scale-cpu-policy"
+  resource_id        = "service/${var.ecs_cluster_name}/${var.container_name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+  policy_type        = "TargetTrackingScaling"
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = 75
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 180
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+  }
+}
+
+resource "aws_appautoscaling_policy" "memory" {
+  name               = "scale-memory-policy"
+  resource_id        = "service/${var.ecs_cluster_name}/${var.container_name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+  policy_type        = "TargetTrackingScaling"
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = 75
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 180
+
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+  }
 }
 
 resource "aws_alb_target_group" "main" {

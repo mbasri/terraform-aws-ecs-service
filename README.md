@@ -37,15 +37,22 @@ terraform destroy
 | image\_tag | Version of the image to use | string | `latest` | no |
 | container\_name | The name of the container to associate with the load balancer (as it appears in a container definition) | string | `empty` | yes |
 | container\_port | The port on the container to associate with the load balancer | string | `80` | no |
-| cpu | The number of cpu units used by the task | string | `256` | no |
-| memory | The amount (in MiB) of memory used by the task | string | `512` | no |
+| container\_cpu | The number of cpu units used by the task | string | `256` | no |
+| container\_memory | The amount (in MiB) of memory used by the task | string | `512` | no |
 | path\_pattern | Contains a single value item which is a list of path patterns to match against the request URL | string | `/` | no |
 | health\_check\_path | The ping path that is the destination on the targets for health check | string | `/` | no |
 | desired\_count | The number of instances of the task definition to place and keep running | string | `1` | no |
+| min\_capacity | The number min of instances of the task definition to place and keep running | string | `1` | no |
+| max\_capacity | The number max of instances of the task definition to place and keep running | string | `1` | no |
 | ecs\_cluster\_name | Name of an ECS cluster | string | `/` | yes |
 | alb\_name | Name of an ALB | string | `/` | yes |
 | name | Default tags name to be applied on the infrastructure for the resources names | map | `...` | yes |
 | tags | Default tags to be applied on the infrastructure | map | `...` | yes |
+| environment | List of variable to pass to the container | list | `...` | no |
+| docker\_labels | A key/value map of labels to add to the container | map | `...` | no |
+| port\_mappings | The list of port mappings for the container | list | `...` | no |
+| volumes\_from | Data volumes to mount from another container | list | `...` | no |
+| mount\_points | The mount points for data volumes in your container | list | `...` | no |
 
 ## Outputs
 

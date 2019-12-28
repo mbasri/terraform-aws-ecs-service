@@ -21,16 +21,46 @@ variable "container_port" {
   default     = "80"
 }
 
-variable "cpu" {
+variable "container_cpu" {
   type        = string
   description = "The number of cpu units used by the task"
   default     = "256"
 }
 
-variable "memory" {
+variable "container_memory" {
   type        = string
   description = "The amount (in MiB) of memory used by the task"
   default     = "512"
+}
+
+variable "environment" {
+  type        = list
+  description = "List of variable to pass to the container"
+  default     = []
+}
+
+variable "docker_labels" {
+  type        = map
+  description = "A key/value map of labels to add to the container"
+  default     = {}
+}
+
+variable "port_mappings" {
+  type        = list
+  description = "The list of port mappings for the container"
+  default     = []
+}
+
+variable "volumes_from" {
+  type        = list
+  description = "Data volumes to mount from another container"
+  default     = []
+}
+
+variable "mount_points" {
+  type        = list
+  description = "The mount points for data volumes in your container"
+  default     = []
 }
 
 # Target Group
@@ -60,15 +90,20 @@ variable "ecs_cluster_name" {
 variable "desired_count" {
   type        = string
   description = "The number of instances of the task definition to place and keep running"
-  default     = "1"
+  default     = "2"
 }
 
-/*
-variable "container_definitions" {
+variable "min_capacity" {
   type        = string
-  description = ""
+  description = "The number min of instances of the task definition to place and keep running"
+  default     = "2"
 }
-*/
+
+variable "max_capacity" {
+  type        = string
+  description = "The number max of instances of the task definition to place and keep running"
+  default     = "4"
+}
 
 variable "tags" {
   type        = map
@@ -84,7 +119,69 @@ variable "name" {
   default     = {}
 }
 
-
 locals {
   prefix_name = join("-",[var.name["Organisation"], var.name["OrganisationUnit"], var.name["Application"], var.name["Environment"]])
+  environment = jsonencode(
+    concat(
+      var.environment,
+      [
+        {
+        "name" :"ENVIRONMENT",
+        "value" : var.tags["Billing:Environment"]
+        }
+      ],
+      [
+        {
+          "name": "APPLICATION",
+          "value": var.tags["Billing:Application"]
+        }
+      ]
+    )
+  )
+
+  docker_labels = jsonencode(
+    merge(
+      var.docker_labels,
+      {
+        "environment": var.tags["Billing:Environment"],
+        "application": var.tags["Billing:Application"]
+      }
+    )
+  )
+
+  port_mappings = jsonencode(
+    concat(
+      var.port_mappings,
+      [
+        {
+          containerPort = tonumber(var.container_port)
+          hostPort      = 0
+          protocol      = "tcp"
+        }
+      ]
+    )
+  )
+
+  volumes_from = concat(
+    var.volumes_from,
+    [
+      {
+        name      = "log"
+        host_path = "/var/log/co"
+      }
+    ]
+  )
+
+  mount_points = jsonencode(
+    concat(
+      var.mount_points,
+      [
+        {
+          sourceVolume  = "log"
+          containerPath = "/var/log/toto"
+        }
+      ]
+    )
+  )
+  
 }

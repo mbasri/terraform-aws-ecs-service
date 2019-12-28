@@ -21,13 +21,24 @@ data "aws_lb_listener" "main_80" {
 }
 
 data "template_file" "main" {
-  template = file("${path.module}/files/task-definition.json")
+  template = file("${path.module}/files/task-definition.json.tpl")
 
   vars = {
-    image_url       = "${var.image_url}:${var.image_tag}"
-    container_name  = var.container_name
-    container_port  = var.container_port
-    cpu_instance    = var.cpu
-    memory_instance = var.memory
+    awslogs_region   = data.terraform_remote_state.main.outputs.region
+    awslogs_group    = "/aws/ecs/${var.ecs_cluster_name}"
+    
+    image_url        = "${var.image_url}:${var.image_tag}"
+    container_name   = var.container_name
+    container_port   = var.container_port
+    container_cpu    = var.container_cpu
+    container_memory = var.container_memory
+    docker_labels    = local.docker_labels
+    environment      = local.environment
+    port_mappings    = local.port_mappings
+    mount_points     = local.mount_points
   }
+}
+
+data "template_file" "as_ecs" {
+  template = file("${path.module}/files/iam/as-ecs-policy.json.tpl")
 }
